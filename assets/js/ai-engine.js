@@ -1,6 +1,7 @@
 /**
- * Daily1Step RemoveBG AI Studio — High-Precision In-Browser AI & Canvas Engine
- * 100% Client-Side, Zero Server Cost, Unlimited 4K Export.
+ * Daily1Step RemoveBG AI Studio — Real Neural Network In-Browser AI Engine
+ * Powered by Google MediaPipe Selfie & Portrait Neural Segmentation (WASM / WebGL)
+ * 100% In-Browser, Zero Server Upload, Ultra-Sharp 4K Cutouts.
  */
 
 var RemoveBGStudio = (function() {
@@ -12,6 +13,9 @@ var RemoveBGStudio = (function() {
   var renderCanvas = document.getElementById('mainCanvas');
   var renderCtx = renderCanvas ? renderCanvas.getContext('2d') : null;
 
+  var selfieSegmentation = null;
+  var isModelLoaded = false;
+
   var state = {
     bgType: 'transparent', // 'transparent', 'color', 'gradient', 'photo', 'blur'
     bgColor: '#ffffff',
@@ -19,6 +23,10 @@ var RemoveBGStudio = (function() {
     gradTo: '#ec4899',
     bgImg: null,
     blurAmount: 20, // px
+    
+    // AI Edge Refinement
+    edgeThreshold: 45, // 0 to 100
+    edgeFeather: 2,
     
     // Brush
     brushMode: 'erase', // 'erase', 'restore'
@@ -33,17 +41,44 @@ var RemoveBGStudio = (function() {
     shadowBlur: 15,
     shadowOffsetY: 10,
     shadowOpacity: 0.35,
-    reflectionEnabled: false,
     
     // View
-    viewMode: 'cutout', // 'cutout', 'split', 'original'
+    viewMode: 'cutout', // 'cutout', 'split'
     zoom: 1.0
   };
 
   // ══════════════════════════════════════════════════════════════════
-  // 1. IMAGE UPLOAD & INGESTION
+  // 1. INITIALIZE NEURAL NETWORK (MediaPipe WASM)
+  // ══════════════════════════════════════════════════════════════════
+  function initNeuralNetwork() {
+    if (typeof SelfieSegmentation !== 'undefined') {
+      try {
+        selfieSegmentation = new SelfieSegmentation({
+          locateFile: function(file) {
+            return 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/' + file;
+          }
+        });
+
+        selfieSegmentation.setOptions({
+          modelSelection: 1, // 1 = landscape/higher accuracy deep neural model
+          selfieMode: false
+        });
+
+        selfieSegmentation.onResults(onNeuralSegmentationResults);
+        isModelLoaded = true;
+        console.log("MediaPipe Neural Network ready!");
+      } catch (err) {
+        console.warn("MediaPipe init error:", err);
+      }
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // 2. DOM EVENT LISTENERS & INGESTION
   // ══════════════════════════════════════════════════════════════════
   function init() {
+    initNeuralNetwork();
+
     var dropzone = document.getElementById('heroDropzone');
     var fileInput = document.getElementById('photoFileInput');
 
@@ -117,21 +152,73 @@ var RemoveBGStudio = (function() {
       maskCanvas.width = img.naturalWidth;
       maskCanvas.height = img.naturalHeight;
 
-      // Run AI Segmentation
-      performAISegmentation(function() {
-        showLoader(false);
-        showWorkspace(true);
-        saveHistory();
-        render();
-      });
+      // Run MediaPipe AI Neural Network Segmentation
+      runAISegmentation();
     };
     img.src = src;
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // 2. IN-BROWSER AI SEGMENTATION ALGORITHM
+  // 3. AI SEGMENTATION PIPELINE (Neural Net + Matte Refinement)
   // ══════════════════════════════════════════════════════════════════
-  function performAISegmentation(callback) {
+  function runAISegmentation() {
+    if (selfieSegmentation) {
+      selfieSegmentation.send({ image: originalImg }).catch(function(err) {
+        console.warn("Neural inference fallback:", err);
+        fallbackColorSegmentation();
+      });
+    } else {
+      fallbackColorSegmentation();
+    }
+  }
+
+  function onNeuralSegmentationResults(results) {
+    var W = originalCanvas.width;
+    var H = originalCanvas.height;
+    var mCtx = maskCanvas.getContext('2d');
+
+    // Draw the neural probability mask from MediaPipe onto maskCanvas
+    mCtx.clearRect(0, 0, W, H);
+    mCtx.drawImage(results.segmentationMask, 0, 0, W, H);
+
+    // Alpha Matte Refinement & High-Contrast Sigmoid Edge Sharpening
+    var maskData = mCtx.getImageData(0, 0, W, H);
+    var pixels = maskData.data;
+
+    // Threshold cutoff value
+    var lowCut = 30;
+    var highCut = 190;
+
+    for (var i = 0; i < pixels.length; i += 4) {
+      var rawVal = pixels[i]; // MediaPipe writes probability in Red/Alpha channel
+      var alpha = 0;
+
+      if (rawVal >= highCut) {
+        alpha = 255;
+      } else if (rawVal <= lowCut) {
+        alpha = 0;
+      } else {
+        // Smooth Hermite interpolation between low and high cut
+        var t = (rawVal - lowCut) / (highCut - lowCut);
+        alpha = Math.floor((t * t * (3 - 2 * t)) * 255);
+      }
+
+      pixels[i] = 255;
+      pixels[i + 1] = 255;
+      pixels[i + 2] = 255;
+      pixels[i + 3] = alpha;
+    }
+
+    mCtx.putImageData(maskData, 0, 0);
+
+    showLoader(false);
+    showWorkspace(true);
+    saveHistory();
+    render();
+  }
+
+  // Fallback if WebGL/WASM unavailable
+  function fallbackColorSegmentation() {
     var W = originalCanvas.width;
     var H = originalCanvas.height;
     var oCtx = originalCanvas.getContext('2d');
@@ -139,33 +226,16 @@ var RemoveBGStudio = (function() {
 
     var imgData = oCtx.getImageData(0, 0, W, H);
     var pixels = imgData.data;
-
     var maskData = mCtx.createImageData(W, H);
     var maskPixels = maskData.data;
 
-    // Sample background colors from 4 corners and borders
-    var cornerSamples = [];
-    var samplePoints = [
-      0, 4, 8, 12, (W - 1) * 4, (W - 2) * 4,
-      ((H - 1) * W) * 4, ((H - 1) * W + (W - 1)) * 4
-    ];
-    samplePoints.forEach(function(idx) {
-      if (idx < pixels.length - 3) {
-        cornerSamples.push({ r: pixels[idx], g: pixels[idx+1], b: pixels[idx+2] });
-      }
-    });
+    // Sample border colors
+    var bgR = (pixels[0] + pixels[(W - 1) * 4] + pixels[((H - 1) * W) * 4]) / 3;
+    var bgG = (pixels[1] + pixels[(W - 1) * 4 + 1] + pixels[((H - 1) * W) * 4 + 1]) / 3;
+    var bgB = (pixels[2] + pixels[(W - 1) * 4 + 2] + pixels[((H - 1) * W) * 4 + 2]) / 3;
 
-    // Compute average corner color
-    var bgR = 0, bgG = 0, bgB = 0;
-    cornerSamples.forEach(function(c) { bgR += c.r; bgG += c.g; bgB += c.b; });
-    bgR /= cornerSamples.length;
-    bgG /= cornerSamples.length;
-    bgB /= cornerSamples.length;
-
-    // Saliency / Center Distance Weighting
     var centerX = W / 2;
     var centerY = H / 2;
-    var maxDist = Math.sqrt(centerX * centerX + centerY * centerY);
 
     for (var y = 0; y < H; y++) {
       for (var x = 0; x < W; x++) {
@@ -174,30 +244,12 @@ var RemoveBGStudio = (function() {
         var g = pixels[idx+1];
         var b = pixels[idx+2];
 
-        // Color difference from background
-        var dR = r - bgR;
-        var dG = g - bgG;
-        var dB = b - bgB;
-        var colorDist = Math.sqrt(dR*dR + dG*dG + dB*dB);
-
-        // Distance from center
-        var dx = (x - centerX) / centerX;
-        var dy = (y - centerY) / centerY;
-        var centerDist = Math.sqrt(dx*dx + dy*dy);
+        var d = Math.sqrt((r - bgR)*(r - bgR) + (g - bgG)*(g - bgG) + (b - bgB)*(b - bgB));
+        var distCenter = Math.sqrt(Math.pow((x - centerX)/centerX, 2) + Math.pow((y - centerY)/centerY, 2));
 
         var alpha = 255;
-
-        // Smart edge thresholding with soft feather
-        var thresh = 32 + (centerDist * 18);
-        if (colorDist < thresh) {
-          var ratio = colorDist / thresh;
-          alpha = Math.floor(ratio * 255);
-          if (alpha < 35) alpha = 0;
-        }
-
-        // Keep foreground subject solid in center
-        if (centerDist < 0.45 && alpha > 40) {
-          alpha = 255;
+        if (d < 45 && distCenter > 0.35) {
+          alpha = 0;
         }
 
         maskPixels[idx] = 255;
@@ -206,14 +258,16 @@ var RemoveBGStudio = (function() {
         maskPixels[idx+3] = alpha;
       }
     }
-
     mCtx.putImageData(maskData, 0, 0);
 
-    if (callback) setTimeout(callback, 50);
+    showLoader(false);
+    showWorkspace(true);
+    saveHistory();
+    render();
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // 3. MASTER RENDER ENGINE
+  // 4. MASTER RENDER ENGINE
   // ══════════════════════════════════════════════════════════════════
   function render() {
     if (!originalImg || !renderCanvas) return;
@@ -282,7 +336,7 @@ var RemoveBGStudio = (function() {
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // 4. BACKGROUND CONTROLLERS
+  // 5. BACKGROUND CONTROLLERS
   // ══════════════════════════════════════════════════════════════════
   window.setBgType = function(type) {
     state.bgType = type;
@@ -331,7 +385,7 @@ var RemoveBGStudio = (function() {
   };
 
   // ══════════════════════════════════════════════════════════════════
-  // 5. MANUAL ERASE & RESTORE BRUSH
+  // 6. MANUAL ERASE & RESTORE BRUSH
   // ══════════════════════════════════════════════════════════════════
   function initBrushEvents() {
     if (!renderCanvas) return;
@@ -423,7 +477,7 @@ var RemoveBGStudio = (function() {
   };
 
   // ══════════════════════════════════════════════════════════════════
-  // 6. SPLIT COMPARISON SLIDER
+  // 7. SPLIT COMPARISON SLIDER
   // ══════════════════════════════════════════════════════════════════
   function initComparisonSlider() {
     var divider = document.getElementById('compDivider');
@@ -472,7 +526,7 @@ var RemoveBGStudio = (function() {
   };
 
   // ══════════════════════════════════════════════════════════════════
-  // 7. TAB SWITCHING
+  // 8. TAB SWITCHING
   // ══════════════════════════════════════════════════════════════════
   window.switchTab = function(tabId, btn) {
     document.querySelectorAll('.tab-edit-btn').forEach(function(b) { b.classList.remove('active'); });
@@ -483,7 +537,7 @@ var RemoveBGStudio = (function() {
   };
 
   // ══════════════════════════════════════════════════════════════════
-  // 8. 4K ULTRA HD EXPORT & DOWNLOAD
+  // 9. 4K ULTRA HD EXPORT & DOWNLOAD
   // ══════════════════════════════════════════════════════════════════
   window.downloadImage = function(format) {
     if (!renderCanvas) return;
@@ -501,7 +555,7 @@ var RemoveBGStudio = (function() {
   };
 
   // ══════════════════════════════════════════════════════════════════
-  // 9. UI HELPERS
+  // 10. UI HELPERS
   // ══════════════════════════════════════════════════════════════════
   function showLoader(show) {
     var loader = document.getElementById('aiProcessingModal');
