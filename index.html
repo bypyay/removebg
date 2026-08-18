@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Remove Background from Image Free — In-Browser AI Background Remover | Daily1Step</title>
+<meta name="description" content="100% Automatic in-browser AI background remover. Remove background from photos, products, people, and graphics in 1 click with 4K HD export. 100% Free, no signup, no credit limits.">
+<link rel="canonical" href="https://bypyay.github.io/removebg/">
+<link rel="stylesheet" href="assets/css/style.css?v=1">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Daily1Step RemoveBG AI Studio",
+  "url": "https://bypyay.github.io/removebg/",
+  "description": "Free in-browser AI background removal tool with instant transparent cutouts, solid colors, gradient backgrounds, magic touch-up brush, and 4K export.",
+  "applicationCategory": "MultimediaApplication",
+  "operatingSystem": "All modern web browsers",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+</head>
+<body>
+
+<!-- Site Header -->
+<header class="site-header">
+  <div class="header-inner">
+    <a href="index.html" class="brand">
+      <div class="brand-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+      <div class="brand-title">Daily1Step <span class="accent">RemoveBG</span></div>
+      <span class="badge-ai">IN-BROWSER AI</span>
+    </a>
+
+    <div class="nav-actions">
+      <button class="btn-header" onclick="resetToUpload()" title="Upload New Image">
+        <i class="fa-solid fa-cloud-arrow-up"></i> Upload New
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- Hero Upload Section -->
+<section class="hero-upload-section" id="heroSection">
+  <h1 class="hero-heading">Remove Image Background <br><span class="gradient-text">100% Automatically in 1 Click</span></h1>
+  <p class="hero-subtitle">Fast, privacy-first AI background remover running directly in your browser. No server upload, no credit limits, no watermarks, full 4K resolution.</p>
+
+  <!-- Big Drag & Drop Zone -->
+  <div class="upload-dropzone-hero" id="heroDropzone">
+    <div class="dropzone-inner-icon">
+      <i class="fa-solid fa-image"></i>
+    </div>
+    <button type="button" class="btn-upload-cta">
+      <i class="fa-solid fa-cloud-arrow-up"></i> Upload Image
+    </button>
+    <div class="dropzone-hint">or drop an image here · paste from clipboard <kbd>Ctrl</kbd>+<kbd>V</kbd></div>
+    <input type="file" id="photoFileInput" accept="image/*" style="display:none;">
+  </div>
+
+  <!-- Sample Demo Images -->
+  <div class="sample-images-bar">
+    <span class="sample-label">No photo? Try one of these:</span>
+    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80" class="sample-thumb" alt="Sample Portrait" onclick="loadSampleImage(this.src)">
+    <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&auto=format&fit=crop&q=80" class="sample-thumb" alt="Sample Product Shoe" onclick="loadSampleImage(this.src)">
+    <img src="https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=200&auto=format&fit=crop&q=80" class="sample-thumb" alt="Sample Dog Pet" onclick="loadSampleImage(this.src)">
+    <img src="https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=200&auto=format&fit=crop&q=80" class="sample-thumb" alt="Sample Man" onclick="loadSampleImage(this.src)">
+  </div>
+</section>
+
+<!-- AI Studio & Interactive Editor Workspace -->
+<section class="workspace-container" id="workspaceSection">
+  <div class="workspace-grid">
+    <!-- Left Canvas Preview Viewport -->
+    <div class="canvas-preview-card">
+      <div class="preview-toolbar">
+        <div class="preview-mode-pills">
+          <button type="button" class="prev-pill-btn active" onclick="setViewMode('cutout', this)">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> AI Cutout
+          </button>
+          <button type="button" class="prev-pill-btn" onclick="setViewMode('split', this)">
+            <i class="fa-solid fa-arrows-split-up-and-left"></i> Split Comparison
+          </button>
+        </div>
+
+        <button class="btn-header" style="padding:6px 12px; font-size:0.8rem;" onclick="resetToUpload()">
+          <i class="fa-solid fa-rotate-left"></i> Change Photo
+        </button>
+      </div>
+
+      <div class="canvas-viewport" id="canvasViewport">
+        <canvas id="mainCanvas"></canvas>
+
+        <!-- Split Slider Overlay -->
+        <div class="comparison-slider-wrap" id="comparisonSliderWrap">
+          <img id="compBeforeImg" class="comp-img-before" alt="Original">
+          <div class="comp-img-after-wrap" id="compAfterWrap">
+            <img id="compAfterImg" class="comp-img-after" alt="Cutout">
+          </div>
+          <div class="comp-divider" id="compDivider">
+            <div class="comp-handle"><i class="fa-solid fa-arrows-left-right"></i></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Configuration Sidebar -->
+    <div class="editor-sidebar-card">
+      <nav class="editor-nav-tabs">
+        <button type="button" class="tab-edit-btn active" onclick="switchTab('bg', this)">
+          <i class="fa-solid fa-palette"></i> Background
+        </button>
+        <button type="button" class="tab-edit-btn" onclick="switchTab('brush', this)">
+          <i class="fa-solid fa-paintbrush"></i> Erase / Restore
+        </button>
+        <button type="button" class="tab-edit-btn" onclick="switchTab('shadow', this)">
+          <i class="fa-solid fa-moon"></i> Shadow
+        </button>
+        <button type="button" class="tab-edit-btn" onclick="switchTab('id', this)">
+          <i class="fa-solid fa-id-card"></i> Passport / ID
+        </button>
+      </nav>
+
+      <!-- 1. Background Tab -->
+      <div id="pane-bg" class="tab-pane-content active">
+        <div style="font-size:0.8rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">
+          Solid Colors
+        </div>
+        <div class="color-swatches-grid">
+          <button class="swatch-btn active" style="background:#ffffff; border:1px solid #cbd5e1;" onclick="setSolidBg('#ffffff', this)" title="Studio White"></button>
+          <button class="swatch-btn" style="background:#f1f5f9;" onclick="setSolidBg('#f1f5f9', this)" title="Light Gray"></button>
+          <button class="swatch-btn" style="background:#0f172a;" onclick="setSolidBg('#0f172a', this)" title="Obsidian Black"></button>
+          <button class="swatch-btn" style="background:#0284c7;" onclick="setSolidBg('#0284c7', this)" title="Passport Blue"></button>
+          <button class="swatch-btn" style="background:#fce7f3;" onclick="setSolidBg('#fce7f3', this)" title="Rose Pink"></button>
+          <button class="swatch-btn" style="background:#fef08a;" onclick="setSolidBg('#fef08a', this)" title="Soft Yellow"></button>
+        </div>
+
+        <button type="button" class="btn-header" style="width:100%; justify-content:center; margin-bottom:18px;" onclick="setBgType('transparent')">
+          <i class="fa-solid fa-border-none"></i> Transparent Background (PNG)
+        </button>
+
+        <div style="font-size:0.8rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">
+          Gradient Presets
+        </div>
+        <div style="display:flex; gap:8px; margin-bottom:18px;">
+          <button class="btn-header" style="flex:1; justify-content:center; background:linear-gradient(135deg, #6366f1, #ec4899); color:#fff;" onclick="setGradientBg('#6366f1', '#ec4899')">Sunset</button>
+          <button class="btn-header" style="flex:1; justify-content:center; background:linear-gradient(135deg, #06b6d4, #3b82f6); color:#fff;" onclick="setGradientBg('#06b6d4', '#3b82f6')">Ocean</button>
+          <button class="btn-header" style="flex:1; justify-content:center; background:linear-gradient(135deg, #f59e0b, #ef4444); color:#fff;" onclick="setGradientBg('#f59e0b', '#ef4444')">Warm</button>
+        </div>
+
+        <div style="font-size:0.8rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">
+          DSLR Background Blur
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:0.82rem; font-weight:700; margin-bottom:4px;">
+          <span>Blur Strength</span>
+          <span id="blurValBadge" style="color:var(--primary);">20px</span>
+        </div>
+        <input type="range" min="0" max="50" value="20" class="calc-input" style="height:auto; padding:0; cursor:pointer;" oninput="updateBlurAmount(this.value)">
+      </div>
+
+      <!-- 2. Erase / Restore Brush Tab -->
+      <div id="pane-brush" class="tab-pane-content">
+        <div style="display:flex; gap:8px; margin-bottom:16px;">
+          <button type="button" class="btn-header btn-brush-mode active" style="flex:1; justify-content:center;" onclick="setBrushMode('erase', this)">
+            <i class="fa-solid fa-eraser"></i> Erase
+          </button>
+          <button type="button" class="btn-header btn-brush-mode" style="flex:1; justify-content:center;" onclick="setBrushMode('restore', this)">
+            <i class="fa-solid fa-paintbrush"></i> Restore
+          </button>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; font-size:0.82rem; font-weight:700; margin-bottom:4px;">
+          <span>Brush Size</span>
+          <span id="brushSizeBadge" style="color:var(--primary);">24px</span>
+        </div>
+        <input type="range" min="4" max="100" value="24" class="calc-input" style="height:auto; padding:0; cursor:pointer; margin-bottom:16px;" oninput="updateBrushSize(this.value)">
+
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn-header" style="flex:1; justify-content:center;" onclick="undoBrush()">
+            <i class="fa-solid fa-rotate-left"></i> Undo
+          </button>
+          <button type="button" class="btn-header" style="flex:1; justify-content:center;" onclick="redoBrush()">
+            <i class="fa-solid fa-rotate-right"></i> Redo
+          </button>
+        </div>
+      </div>
+
+      <!-- 3. Shadow Tab -->
+      <div id="pane-shadow" class="tab-pane-content">
+        <div style="margin-bottom:14px;">
+          <label style="display:flex; align-items:center; gap:8px; font-weight:700; font-size:0.9rem; cursor:pointer;">
+            <input type="checkbox" id="chkShadow" onchange="updateShadow()">
+            <span>Enable Drop Shadow</span>
+          </label>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:0.78rem; font-weight:700; color:var(--text-muted);">Shadow Blur</label>
+          <input type="range" min="0" max="50" value="15" id="shadowBlurRange" class="calc-input" style="height:auto; padding:0;" oninput="updateShadow()">
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:0.78rem; font-weight:700; color:var(--text-muted);">Offset Y</label>
+          <input type="range" min="0" max="40" value="10" id="shadowOffsetRange" class="calc-input" style="height:auto; padding:0;" oninput="updateShadow()">
+        </div>
+      </div>
+
+      <!-- 4. Passport / ID Tab -->
+      <div id="pane-id" class="tab-pane-content">
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:14px;">Quickly apply standard government passport &amp; visa background presets:</p>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px;">
+          <button class="btn-header" style="justify-content:center;" onclick="setSolidBg('#ffffff')">US Passport (White)</button>
+          <button class="btn-header" style="justify-content:center;" onclick="setSolidBg('#0284c7')">India / UK (Blue)</button>
+          <button class="btn-header" style="justify-content:center;" onclick="setSolidBg('#f1f5f9')">Schengen (Light Gray)</button>
+          <button class="btn-header" style="justify-content:center;" onclick="setSolidBg('#ef4444')">Red Background</button>
+        </div>
+      </div>
+
+      <!-- Download Actions Footer -->
+      <div class="export-actions-card">
+        <button type="button" class="btn-download-primary" onclick="downloadImage('png')">
+          <i class="fa-solid fa-download"></i> Download HD (PNG)
+        </button>
+        <button type="button" class="btn-header" style="padding:10px 14px;" onclick="downloadImage('jpg')" title="Download as JPEG">
+          JPG
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Processing Modal Indicator -->
+<div id="aiProcessingModal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(15,23,42,0.6); backdrop-filter:blur(6px); align-items:center; justify-content:center;">
+  <div style="background:#ffffff; border-radius:var(--radius-xl); padding:36px; text-align:center; max-width:400px; box-shadow:var(--shadow-xl);">
+    <div style="width:50px; height:50px; border-radius:50%; border:3px solid #e2e8f0; border-top-color:var(--primary); animation:spin 1s linear infinite; margin:0 auto 16px;"></div>
+    <h3 style="font-size:1.25rem; font-weight:800; margin-bottom:6px;">Removing Background…</h3>
+    <p style="font-size:0.85rem; color:var(--text-muted);">AI is isolating the subject with sub-pixel precision directly in your browser.</p>
+  </div>
+</div>
+<style>
+@keyframes spin { 0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); } }
+</style>
+
+<!-- Features Grid -->
+<section class="features-container">
+  <div class="feat-grid">
+    <div class="feat-card">
+      <div class="feat-icon"><i class="fa-solid fa-bolt"></i></div>
+      <div class="feat-title">100% In-Browser AI</div>
+      <div class="feat-desc">Runs locally using WebAssembly and WebGL. Your photos never leave your device, ensuring maximum privacy and instant speed.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon"><i class="fa-solid fa-expand"></i></div>
+      <div class="feat-title">Full 4K Ultra HD Export</div>
+      <div class="feat-desc">Unlike other tools that charge for HD downloads, Daily1Step provides 100% original full-resolution PNG cutouts completely free.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon"><i class="fa-solid fa-paintbrush"></i></div>
+      <div class="feat-title">Magic Touch-Up Brush</div>
+      <div class="feat-desc">Effortlessly erase unwanted elements or restore fine details like flyaway hair with pixel-level precision.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon"><i class="fa-solid fa-infinity"></i></div>
+      <div class="feat-title">Unlimited Free Usage</div>
+      <div class="feat-desc">No credit tokens, no registration, and no watermarks. Process as many portraits, products, and graphics as you need.</div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="site-footer">
+  <div class="footer-links">
+    <a href="index.html">Home</a>
+    <a href="legal/privacy.html">Privacy Policy</a>
+    <a href="legal/terms.html">Terms of Service</a>
+    <a href="legal/about.html">About Us</a>
+    <a href="legal/contact.html">Contact</a>
+    <a href="legal/disclaimer.html">Disclaimer</a>
+  </div>
+  <p class="copyright">&copy; 2026 Daily1Step RemoveBG. Free in-browser AI background remover studio.</p>
+</footer>
+
+<script src="vendor/jszip.min.js"></script>
+<script src="assets/js/ai-engine.js?v=1"></script>
+</body>
+</html>
